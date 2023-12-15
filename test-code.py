@@ -2,9 +2,15 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.interpolate import interp1d
+
 
 raw_data = pd.read_csv('NASA-Exoplanet-Archive.csv', sep=',')
 data = pd.DataFrame(raw_data.groupby('pl_name').first()).reset_index()
+
+G = 6.674*10**-11
+Me = 5.9722*10**24
+re = 6378000
 
 # ================================================================================
 # SUPERLATIVES
@@ -75,16 +81,14 @@ def discoveries_per_year_plot():
     plt.show()
 
 
-kepler_filter = data['disc_instrument'] == 'Kepler CCD Array'
-kepler_disc_per_year = data[kepler_filter].groupby('disc_year').count()['pl_name']
-
 not_kepler_filter = data['disc_instrument'] != 'Kepler CCD Array'
 not_kepler_disc_per_year = data[not_kepler_filter].groupby('disc_year').count()['pl_name']
 
+
 def kepler():
 
-    x1 = list(kepler_disc_per_year.index)
-    y1 = kepler_disc_per_year
+    x1 = list(discoveries_per_year['pl_name'].index)
+    y1 = discoveries_per_year['pl_name']
 
     x2 = list(not_kepler_disc_per_year.index)
     y2 = not_kepler_disc_per_year
@@ -100,7 +104,62 @@ def kepler():
     plt.show()
 
 
+def extrapolate():
+
+    x = list(not_kepler_disc_per_year.index)[:-1]
+    y = list(not_kepler_disc_per_year)[:-1]
+    func = interp1d(x, y, axis=0, bounds_error=False, kind='quadratic', fill_value='extrapolate')
+
+    fig, axs = plt.subplots(2, 2)
+    fig.suptitle('Predicted Exoplanet Discoveries by Year')
+
+    x5 = list(range(2000, 2029))
+    y5 = func(x5)
+
+    axs[0, 0].plot(x5, y5)
+    axs[0, 0].plot(x, y)
+    axs[0, 0].set_title('Five Years (2028)')
+    axs[0, 0].legend(['Extrapolation', 'Data'])
+
+    x10 = list(range(2000, 2034))
+    y10 = func(x10)
+    axs[0, 1].plot(x10, y10)
+    axs[0, 1].plot(x, y)
+    axs[0, 1].set_title('Ten Years (2033)')
+
+
+    x50 = list(range(2000, 2074))
+    y50 = func(x50)
+    axs[1, 0].plot(x50, y50)
+    axs[1, 0].plot(x, y)
+    axs[1, 0].set_title('Fifty Years (2073)')
+
+    x100 = list(range(2000, 2124))
+    y100 = func(x100)
+    axs[1, 1].plot(x100, y100)
+    axs[1, 1].plot(x, y)
+    axs[1, 1].set_title('One Hundred Years (2123)')
+
+    for ax in axs.flat:
+        ax.set(xlabel='Years', ylabel='Number of Discoveries')
+    fig.tight_layout()
+
+    plt.show()
+
+
+def gravity():
+    notna_filter = data['pl_rade'].notna()
+    # Create new column for surface gravity...
+    data['surface_g'] = G*(Me*data['pl_bmasse'])/(re*data['pl_rade'])**2
+    return data[notna_filter]['surface_g']
+
+
+print(gravity())
+print(G*Me/re**2)
+# GM/r^2
+
 # discoveries_per_year_plot()
 # discoveries_per_instrument()
 # best_methods_graph()
 # kepler()
+# extrapolate()
