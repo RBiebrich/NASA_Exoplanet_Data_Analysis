@@ -8,10 +8,6 @@ from scipy.interpolate import interp1d
 raw_data = pd.read_csv('NASA-Exoplanet-Archive.csv', sep=',')
 data = pd.DataFrame(raw_data.groupby('pl_name').first()).reset_index()
 
-G = 6.674*10**-11
-Me = 5.9722*10**24
-re = 6378000
-
 # ================================================================================
 # SUPERLATIVES
 ordered_by_disc_year = data.sort_values('disc_year')[['pl_name', 'disc_year']]
@@ -26,8 +22,8 @@ def discoveries_per_instrument():
     x = list(most_successful_instrument.head(5).index)
     y = most_successful_instrument.head(5)
     colors = [(0.0, 0.4, 0.4, 0.9), (0.0, 0.4, 0.4, 0.6),
-              (0.0, 0.4, 0.4, 0.4), (0.0, 0.4, 0.4, 0.3), 
-               (0.0, 0.4, 0.4, 0.2)]
+              (0.0, 0.4, 0.4, 0.4), (0.0, 0.4, 0.4, 0.3),
+              (0.0, 0.4, 0.4, 0.2)]
 
     fig, ax = plt.subplots()
     ax.bar(x, y, color=colors)
@@ -127,7 +123,6 @@ def extrapolate():
     axs[0, 1].plot(x, y)
     axs[0, 1].set_title('Ten Years (2033)')
 
-
     x50 = list(range(2000, 2074))
     y50 = func(x50)
     axs[1, 0].plot(x50, y50)
@@ -147,19 +142,91 @@ def extrapolate():
     plt.show()
 
 
+# ================================================================================
+# CALCULATIONS
+
+G = 6.674*10**-11
+Me = 5.9722*10**24
+re = 6371000
+
+notna_filter = data['pl_rade'].notna()
+
+
+def r_in_meters():
+    # Create new column for radius in meters...
+    data['pl_r_meters'] = (data['pl_rade']*re)
+    return data[notna_filter]['pl_r_meters']
+
+
+def m_in_kg():
+    # Create new column for mass in kilograms...
+    data['pl_mass_kg'] = (data['pl_bmasse']*Me)
+    return data[notna_filter]['pl_mass_kg']
+
+
+def volume():
+    r_in_meters()
+
+    # Create new column for volume...
+    data['pl_vol'] = 4/3*3.14*(data['pl_r_meters'])**3
+    return data[notna_filter]['pl_vol']
+
+
+def density():
+    m_in_kg()
+    volume()
+
+    # Create new column for mean desnity...
+    data['pl_density'] = data['pl_mass_kg']/data['pl_vol']
+    return data[notna_filter]['pl_density']
+
+
+def density_cutoff():
+    filtered = data['pl_density'] >= 3000
+    return data[filtered]
+
 def gravity():
-    notna_filter = data['pl_rade'].notna()
     # Create new column for surface gravity...
     data['surface_g'] = G*(Me*data['pl_bmasse'])/(re*data['pl_rade'])**2
     return data[notna_filter]['surface_g']
 
 
-print(gravity())
+def density_plot():
+    filtered = density().notna()
+    dens = density()[filtered]
+    fig, (ax1, ax2) = plt.subplots(2)
+
+    x1 = list(range(len(dens)))
+    y1 = sorted(list(dens))
+    print(x1)
+    print(len(y1))
+    ax1.bar(x1, y1)
+    ax1.set(xlabel='', ylabel='Density (kg/m^3)')
+    plt.show()
+
+density_plot()
+
+
 print(G*Me/re**2)
+Ve = 4/3*3.14*(re)**3
+print(Ve)
+print(Me/Ve)
 # GM/r^2
+
+# print(data[['st_spectype', 'pl_orbsmax']])
+
+# Calculation for Earth
+# TODO: implement the gravity function into the jupyter notebook with accompanying text,
+#       possibly also calculate schwarzchild radius of planet with INSANE density... its really
+#       screwing with the visualizations and if it is passed SR then we're justified to discard
+#       really wrap up habitable planet criteria
+#       also save graphs to files
 
 # discoveries_per_year_plot()
 # discoveries_per_instrument()
 # best_methods_graph()
 # kepler()
 # extrapolate()
+# r_in_meters()
+# print(gravity())
+print(density())
