@@ -1,12 +1,13 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from scipy.interpolate import interp1d
+from scipy.constants import gravitational_constant as G
+from scipy.constants import pi
 
-
-raw_data = pd.read_csv('NASA-Exoplanet-Archive.csv', sep=',')
+raw_data = pd.read_csv('NASA-exoplanet-archive3.csv', sep=',')
 data = pd.DataFrame(raw_data.groupby('pl_name').first()).reset_index()
+
 
 # ================================================================================
 # SUPERLATIVES
@@ -145,7 +146,6 @@ def extrapolate():
 # ================================================================================
 # CALCULATIONS
 
-G = 6.674*10**-11
 Me = 5.9722*10**24
 re = 6371000
 
@@ -168,7 +168,7 @@ def volume():
     r_in_meters()
 
     # Create new column for volume...
-    data['pl_vol'] = 4/3*3.14*(data['pl_r_meters'])**3
+    data['pl_vol'] = 4/3*pi*(data['pl_r_meters'])**3
     return data[notna_filter]['pl_vol']
 
 
@@ -182,45 +182,34 @@ def density():
 
 
 def density_cutoff():
+    density()
+    # filter out densities that do not meet our criteria
     filtered = data['pl_density'] >= 3000
     return data[filtered]
+
+
+def habitable_boundaries():
+    filtered = data['st_lum'].notna()
+    # Create new column for surface gravity...
+    data['inner_rad'] = np.sqrt((np.absolute(data['st_lum']))/1.1)
+
+    # Create new column for surface gravity...
+    data['outer_rad'] = np.sqrt((np.absolute(data['st_lum']))/0.53)
+
+    return data[filtered]
+
+
+def goldilocks_filter():
+    df = habitable_boundaries()
+    filtered = (df['pl_orbsmax'] >= df['inner_rad']) & (df['pl_orbsmax'] <= df['outer_rad'])
+    return df[filtered]
+
 
 def gravity():
     # Create new column for surface gravity...
     data['surface_g'] = G*(Me*data['pl_bmasse'])/(re*data['pl_rade'])**2
     return data[notna_filter]['surface_g']
 
-
-def density_plot():
-    filtered = density().notna()
-    dens = density()[filtered]
-    fig, (ax1, ax2) = plt.subplots(2)
-
-    x1 = list(range(len(dens)))
-    y1 = sorted(list(dens))
-    print(x1)
-    print(len(y1))
-    ax1.bar(x1, y1)
-    ax1.set(xlabel='', ylabel='Density (kg/m^3)')
-    plt.show()
-
-density_plot()
-
-
-print(G*Me/re**2)
-Ve = 4/3*3.14*(re)**3
-print(Ve)
-print(Me/Ve)
-# GM/r^2
-
-# print(data[['st_spectype', 'pl_orbsmax']])
-
-# Calculation for Earth
-# TODO: implement the gravity function into the jupyter notebook with accompanying text,
-#       possibly also calculate schwarzchild radius of planet with INSANE density... its really
-#       screwing with the visualizations and if it is passed SR then we're justified to discard
-#       really wrap up habitable planet criteria
-#       also save graphs to files
 
 # discoveries_per_year_plot()
 # discoveries_per_instrument()
@@ -229,4 +218,7 @@ print(Me/Ve)
 # extrapolate()
 # r_in_meters()
 # print(gravity())
-print(density())
+# print(density())
+# print(density_cutoff())
+# print(habitable_boundaries())
+# print(goldilocks_filter())
